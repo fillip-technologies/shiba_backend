@@ -1,0 +1,27 @@
+{
+    "name": "shiba",
+    "version": "1.0.0",
+    "description": "shiba is the ultimate backend solution",
+    "main": "src/server.js",
+    "scripts": {
+        "setup": "npm install && npm update",
+        "start": "node src/server.js"
+    },
+    "keywords": [
+        "express",
+        "backend",
+        "shiba"
+    ],
+    "type": "module",
+    "license": "UNLICENSED",
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cookie-parser": "^1.4.4",
+        "cors": "^2.8.5",
+        "dotenv": "^17.4.2",
+        "express": "^4.17.1",
+        "helmet": "^3.21.2",
+        "jsonwebtoken": "^9.0.3",
+        "pg": "^8.23.0"
+    }
+}
