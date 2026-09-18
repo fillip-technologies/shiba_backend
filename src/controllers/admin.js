@@ -1,4 +1,4 @@
-import db from '../util/db.js';
+import AdminUser from '../models/AdminUser.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -15,8 +15,7 @@ export const login = async (req, res) => {
   if (!email || !password)
     return res.status(400).json({ success: false, message: 'Email and password are required' });
 
-  const { rows } = await db.query('SELECT * FROM admin_users WHERE email = $1', [email.toLowerCase().trim()]);
-  const admin = rows[0];
+  const admin = await AdminUser.findOne({ email: email.toLowerCase().trim() });
   if (!admin || !bcrypt.compareSync(password, admin.password))
     return res.status(401).json({ success: false, message: 'Invalid email or password' });
 
@@ -42,16 +41,13 @@ export const forgotPassword = async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-  const { rows } = await db.query('SELECT id FROM admin_users WHERE email = $1', [email.toLowerCase().trim()]);
-  if (rows.length === 0)
+  const admin = await AdminUser.findOne({ email: email.toLowerCase().trim() });
+  if (!admin)
     return res.json({ success: true, message: 'If this email exists, a reset link has been generated.' });
 
   const token = crypto.randomBytes(32).toString('hex');
   const expires = Date.now() + 60 * 60 * 1000;
-  await db.query(
-    'UPDATE admin_users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
-    [token, expires, rows[0].id]
-  );
+  await AdminUser.findByIdAndUpdate(admin._id, { resetToken: token, resetTokenExpires: expires });
 
   const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/reset-password?token=${token}`;
   console.log(`[Password Reset URL] ${resetUrl}`);
@@ -70,15 +66,11 @@ export const resetPassword = async (req, res) => {
   if (password.length < 8)
     return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
 
-  const { rows } = await db.query('SELECT * FROM admin_users WHERE reset_token = $1', [token]);
-  const admin = rows[0];
-  if (!admin || Number(admin.reset_token_expires) < Date.now())
+  const admin = await AdminUser.findOne({ resetToken: token });
+  if (!admin || admin.resetTokenExpires < Date.now())
     return res.status(400).json({ success: false, message: 'Reset link is invalid or has expired' });
 
   const hash = bcrypt.hashSync(password, 10);
-  await db.query(
-    'UPDATE admin_users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
-    [hash, admin.id]
-  );
+  await AdminUser.findByIdAndUpdate(admin._id, { password: hash, resetToken: null, resetTokenExpires: null });
   res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
 };
